@@ -1,3 +1,8 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 # Getting set up for Labs in EDS 222
 
 In EDS 222 labs, we will often be working with exercises based on *Introduction to Modern Statistics* by Çetinkaya-Rundel and Hardin. To be able to access the data and custom packages these exercises sometimes rely on, we need to do a bit of setup. This will get you all set for all future labs; you won't need to do it each time.
@@ -48,6 +53,7 @@ suppressMessages({
 library(tidyverse)
 library(gt)
 library(openintro)
+library(here)
 ```
 
 Take a look at the help files for `source()` and `file.path()` functions. We will use these a lot in Labs and homework assignments.
@@ -63,7 +69,7 @@ Take a look at the help files for `source()` and `file.path()` functions. We wil
 Now, use `source` to run the script `_common.R`, which loads all the packages we'll need for our labs and does some extra stuff we won't use today. You'll `source()` this setup script before running all your labs.
 
 ```{r,include=TRUE}
-source(here::here("_common.R"))
+source(here::here("Course Materials", "_common.R"))
 ```
 
 For labs, we want to see all our code. Set your `knitr` options to `echo=TRUE` so you see all your code and output.
