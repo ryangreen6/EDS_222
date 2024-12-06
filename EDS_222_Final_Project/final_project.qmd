@@ -1,0 +1,301 @@
+---
+title: "final_project"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(sf)
+library(here)
+library(tmap)
+library(nngeo)
+library(terra)
+library(tidyverse)
+```
+
+```{r}
+rm(list = ls())
+
+shape <- st_read(here("data", "Shape", "Elev_Contour.shp"))
+shape2 <- st_read(here("data", "Shape-2", "Elev_Contour.shp")) # top right of extent
+shape3 <- st_read(here("data", "Shape-3", "Elev_Contour.shp")) # bottom right of extent
+santa_rosa_is <- st_read(here("data", "Shape-4", "Elev_Contour.shp"))
+# Data from: https://apps.nationalmap.gov/downloader/
+
+water_bodies1 <- st_read(here("data", "NHD_H_18060013_HU8_Shape", "Shape", "NHDWaterbody.shp"))
+water_bodies2 <- st_read(here("data", "NHD_H_18060010_HU8_Shape", "Shape", "NHDWaterbody.shp"))
+
+
+water_bodies <- rbind(water_bodies1, water_bodies2)
+channel_islands_creeks <- st_read(here("data", "NHD_H_18060014_HU8_Shape", "Shape", "NHDFlowline.shp"))
+creeks <- st_read(here("data", "NHD_H_18060013_HU8_Shape", "Shape", "NHDFlowline.shp"))
+full_extent <- rbind(shape, shape2, shape3, santa_rosa_is)
+coastline <- st_read(here("data", "NHD_H_18060013_HU8_Shape", "Shape", "NHDArea.shp"))
+
+coastline$elevation <- 0
+
+```
+
+```{r, Elevation Rasters}
+tif1 <- rast(here("data", "USGS_1_n35w121_20210301.tif"))
+tif4 <- rast(here("data", "USGS_1_n34w120_20130911.tif"))
+tif3 <- rast(here("data", "USGS_1_n34w121_20130911.tif"))
+tif2 <- rast(here("data", "USGS_1_n35w120_20240207.tif"))
+
+elevation_raster <- merge(tif1, tif2, tif3, tif4)
+```
+
+
+```{r}
+# shapes <- list(full_extent, channel_islands_creeks, creeks, water_bodies, coastline)
+# names(shapes) <- c("full_extent", "channel_islands_creeks", "creeks", "water_bodies", "coastline")
+# 
+# for (i in seq_along(shapes)) {
+#   if (st_crs(shapes[[i]]) != st_crs(4326)) {
+#   message(paste("Reprojected", names(shapes)[i], "to EPSG:4326"))
+#   shapes[[i]] <- st_transform(shapes[[i]], 4326)
+# } else {
+#     message(paste("CRS of", names(shapes)[i], "is already EPSG:4326"))
+# }
+# }
+# 
+# for (i in seq_along(shapes)) {
+#   if (st_crs(shapes[[i]]) != st_crs(4326)) {
+#     stop(paste("Reprojection of", names(shapes)[i], "to EPSG:4326 UNSUCCESSFUL"))
+#   } else {
+#     message(paste("Reprojection of", names(shapes)[i], "confirmed to EPSG:4326"))
+#   }
+# }
+```
+
+```{r}
+channel_islands_extent <- c(xmin = -119.28, xmax = -120.51, ymin = 33.86, ymax = 34.15)
+santa_barbara_extent <- c(xmin = -119.37, xmax = -120.14, ymin = 34.31, ymax = 34.57)
+point_conception_extent <- c(xmin = -120.338867, xmax = -120.525807, ymin = 34.2, ymax = 34.521897)
+large_extent <- c(xmin = -118.89, xmax = -120.93, ymin = 33.79, ymax = 35.05)
+```
+
+```{r}
+channel_islands_map <- st_crop(full_extent, channel_islands_extent)
+santa_barbara_map <- st_crop(full_extent, santa_barbara_extent)
+point_conception_map <- st_crop(full_extent, point_conception_extent)
+point_conception_creeks <- st_crop(creeks, point_conception_extent)
+```
+
+```{r}
+channel_islands_map_rast <- terra::crop(elevation_raster, channel_islands_map)
+santa_barbara_map_rast <- terra::crop(elevation_raster, santa_barbara_map)
+point_conception_map_rast <- terra::crop(elevation_raster, point_conception_map)
+```
+
+
+```{r}
+early_sites <- data.frame(
+  lon = c(-120.478075, -120.464917, -120.472431, -120.423728),
+  lat = c(34.482333, 34.468369, 34.459728, 34.457061),
+  age = c("Early Holocene", "Early Holocene", "Early Holocene", "Early Holocene")
+)
+
+middle_sites <- data.frame(
+  lon = c(-120.484033, -120.462561, -120.456017, -120.439172, -120.417517, -120.467314,
+          -120.465567),
+  lat = c(34.486821, 34.479497, 34.461642, 34.454397, 34.453544, 34.4493, 34.4497),
+  age = c("Middle Holocene", "Middle Holocene", "Middle Holocene", "Middle Holocene", "Middle Holocene", "Middle Holocene", "Middle Holocene")
+)
+
+late_sites <- data.frame(
+  lon = c(-120.484061, -120.472714, -120.471825, -120.446807, -120.443714, -120.470214, -120.468167, -120.470469, -120.470764, -120.470353, -120.4673, -120.464614, -120.463492, -120.462292),
+  lat = c(34.484853, 34.460742, 34.454228, 34.45, 34.451767, 34.449558, 34.4503, 34.452011, 34.452331, 34.452164, 34.451886, 34.45115, 34.449714, 34.448922),
+  age = c("Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene", "Late Holocene")
+)
+
+early_sites <- st_as_sf(early_sites, coords = c("lon", "lat"), crs = st_crs(4326))
+middle_sites <- st_as_sf(middle_sites, coords = c("lon", "lat"), crs = st_crs(4326))
+late_sites <- st_as_sf(late_sites, coords = c("lon", "lat"), crs = st_crs(4326))
+
+early_sites <- st_transform(early_sites, st_crs(4269))
+middle_sites <- st_transform(middle_sites, st_crs(4269))
+late_sites <- st_transform(late_sites, st_crs(4269))
+
+all_sites <- rbind(early_sites, middle_sites, late_sites)
+```
+
+```{r}
+# site_datasets <- list(early_sites = early_sites, middle_sites = middle_sites, late_sites = late_sites)
+# 
+# for (name in names(site_datasets)) {
+#   sites <- site_datasets[[name]]
+#   nearest_two <- lapply(1:nrow(sites), function(i) {
+#     distances <- st_distance(sites[i, ], point_conception_map)
+#     nearest_indices <- order(distances)[1:2]
+#     point_conception_map$ContourEle[nearest_indices]
+#   })
+#   sites$elevation <- sapply(nearest_two, mean, na.rm = TRUE)
+#   site_datasets[[name]] <- sites
+# }
+# 
+# early_sites <- site_datasets$early_sites
+# middle_sites <- site_datasets$middle_sites
+# late_sites <- site_datasets$late_sites
+# 
+# all_sites <- rbind(early_sites, middle_sites, late_sites)
+```
+
+```{r, Finding Site Elevations}
+points_vect <- vect(all_sites)
+
+extracted <- terra::extract(elevation_raster, points_vect)
+
+all_sites$elevation_m <- extracted$USGS_1_n35w121_20210301
+
+tm_shape(elevation_raster) +
+  tm_raster() +
+tm_shape(all_sites) +
+  tm_dots()
+```
+
+```{r, Finding Distance to Water}
+creeks_nozm <- st_zm(creeks, drop = TRUE, what = "ZM")
+
+dist2creek <- function(site, creeks) {
+  nngeo::st_nn(site, 
+               creeks,
+               k = 1, 
+               returnDist = TRUE, 
+               progress = FALSE)$dist[[1]]
+}
+
+all_sites$water_proximity <- as.numeric(nngeo::st_nn(all_sites, 
+                                                     creeks_nozm, 
+                                                     k = 1, 
+                                                     returnDist = TRUE)$dist)
+```
+
+
+
+```{r}
+# tm_shape(point_conception_map) +
+#   tm_lines(col = "ContourEle",
+#            palette = c("palegreen4", "saddlebrown"),
+#            lwd = 0.4) +
+# tm_shape(point_conception_creeks) +
+#   tm_lines(col = "blue",
+#            lwd = 0.3) +
+# tm_shape(water_bodies) +
+#   tm_polygons(col = "lightblue") +
+# tm_shape(early_sites) +
+#   tm_dots(shape = 21,
+#           col = "blue",
+#           size = 0.2) +
+# tm_shape(middle_sites) +
+#   tm_dots(shape = 21,
+#           col = "green",
+#           size = 0.2) +
+# tm_shape(late_sites) +
+#   tm_dots(shape = 21,
+#           col = "yellow",
+#           size = 0.2) +
+# tm_layout()
+```
+
+```{r}
+# point_conception_map <- st_transform(point_conception_map, crs = "EPSG:3395")
+# 
+# raster_template <- rast(
+#   extent = st_bbox(point_conception_map),
+#   resolution = 150,
+#   crs = "EPSG:3395")
+# 
+# elevation_raster <- rasterize(
+#   x = point_conception_map,
+#   y = raster_template,
+#   field = "ContourEle",
+#   fun = mean
+# )
+# 
+# tm_shape(elevation_raster) +
+#   tm_raster()
+```
+
+
+
+
+create a grid of points using spatSample, method = regular
+nearest points to streams
+convert a raster
+
+```{r}
+model <- lm(all_sites$water_proximity ~ all_sites$elevation_m, data = all_sites)
+summary(model)
+
+ggplot(all_sites, aes(x= water_proximity, y = elevation_m)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+
+```
+
+
+```{r}
+
+tm_shape(point_conception_map) +
+  tm_lines(lwd = 0.1) +
+tm_shape(point_conception_creeks) +
+  tm_lines(lwd = 1, col = 'purple') +
+tm_shape(all_sites) +
+  tm_dots(col = 'red') 
+# tm_shape(grid_pc) +
+#   tm_polygons(fill = NA)
+  
+# tm_shape(nearest_feature) +
+#   tm_dots(col = 'orange') 
+
+```
+
+```{r}
+all_sites$presence <- 1
+```
+
+```{r}
+set.seed(420)
+absence_points <- spatSample(point_conception_map_rast, size = 2000, method = "regular", as.points = TRUE)
+
+extracted_absence <- terra::extract(elevation_raster, absence_points)
+
+absence_points$elevation_m <- extracted_absence$USGS_1_n35w121_20210301
+
+absence_points$presence <- 0
+absence_points$age <- NA
+
+absence_points <- st_as_sf(absence_points)
+
+absence_points <- subset(absence_points, elevation_m >= 1) %>%
+  select(-USGS_1_n35w121_20210301)
+
+absence_points$water_proximity <- as.numeric(nngeo::st_nn(absence_points, 
+                                                     creeks_nozm, 
+                                                     k = 1, 
+                                                     returnDist = TRUE)$dist)
+
+all_sites <- rbind(all_sites, absence_points)
+
+tm_shape(point_conception_map_rast) +
+  tm_raster() +
+tm_shape(all_sites) +
+  tm_dots()
+
+
+
+```
+
+```{r}
+
+```
+
+
+
+
+
